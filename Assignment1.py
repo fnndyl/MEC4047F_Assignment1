@@ -1,28 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Physical constants
+# Case to work with
 
-m = 50
-c = 10
-k = 250
-
-m_0 = 6
-e = 0.225
-
-# Initial conditions
-
-y_0 = 1
-v_0 = 0
-
-
-y_neg1 = (0 - c*(v_0) - k*(y_0)) # This is still terrible
-
-
-y = [0.9997, y_0]
-print(y)
-
-
+ 
 # Function definitions
 
 def cent_dif(y, n):
@@ -32,9 +13,21 @@ def cent_dif(y, n):
 
     return y
 
+def force():
+    return 0
+
+# Physical constants
+
+m = 50
+c = 10
+k = 250
+
+m_0 = 6
+e = 0.225
+
 # Time definitions
 
-n_tot = 1000
+n_tot = 10000
 
 start_time = 0
 end_time = 10
@@ -43,6 +36,18 @@ h = (end_time - start_time)/n_tot
 
 t_plot = [0, 0]
 t_plot[0] = 0 - h
+
+
+# Initial conditions
+
+y_0 = 1
+v_0 = 0
+
+# y_neg1 = y_0 - (v_0 - h*((force() - c*v_0 - k*y_0)/m))
+# First step foward
+ 
+y = [0.9997, y_0]
+print(y)
 
 
 # Main loop
