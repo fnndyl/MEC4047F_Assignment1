@@ -3,32 +3,31 @@ import numpy as np
 
 # Start time & end time
 
-n_tot = 565
+n_tot = 5000
 start_time = 0
-end_time = 10
+end_time = 2.5
 
 h = (end_time - start_time)/n_tot
 t = np.linspace(start_time, end_time, n_tot)
 
 # Options: noDamp, damp, sinF
 
-mode = 'noDamp'
-testing = True
+mode = '400rpmshifted'
+testing = False
 
 if mode == 'userDef':
     
     [m, c, k] = [50, 10, 200]
-    [y_0, v_0] = [5, 3]
-
-    [m_0, e] = [6, 0.225]
     
     [y_0, v_0] = [1, 0]
     
     def force(n):
         return 30*np.sin((n*h))
     
+    testing = False
+    
 elif mode == 'noDamp':
-    def force(t):
+    def force(n):
         return 0
     
     [m, c, k] = [50, 0, 250]
@@ -44,7 +43,6 @@ elif mode == 'damp':
     [y_0, v_0] = [1, 2]
     
     # Real soln
-    x_s = np.arange(start_time, end_time, 0.01)
     y_s = (np.cos(np.sqrt(299)/10*t) + (21/np.sqrt(299))*np.sin(np.sqrt(299)/10*t))*np.exp((-1/10)*t)
     
 elif mode == 'sinF':
@@ -55,9 +53,37 @@ elif mode == 'sinF':
     [y_0, v_0] = [0, 5]
     
     # Real soln
-    x_s = np.arange(start_time, end_time, 0.01)
     y_s = (-6*np.exp(-3*t) + 7*np.exp(-2*t) + np.sin(t) - np.cos(t))
 
+elif mode == '400rpm':
+    [m, c, k] = [54, 320, 26000]
+    [m_0, e, omega] = [5.5, 0.225, 400*np.pi/30]
+    
+    [y_0, v_0] = [0, 0]
+    
+    m = m + m_0
+    
+    def force(n):
+        return m_0*e*(omega**2)*np.cos(omega*(n*h))
+    
+    # Real soln
+    y_s = ((-0.0304)*np.cos(21.7417*t) + (0.0073)*np.sin(21.7417*t))*np.exp(-2.9623*t) + (0.031)*np.cos(omega*t - (-0.1926))
+    
+
+elif mode == '400rpmshifted':
+    [m, c, k] = [54, 320, 26000]
+    [m_0, e, omega] = [5.5, 0.225, 400*np.pi/30]
+ 
+    [y_0, v_0] = [0, 0]
+    
+    m = m + m_0
+ 
+    def force(n):
+        return m_0*e*(omega**2)*np.cos(omega*(n*h))
+ 
+    # Real soln
+    y_s = ((0.0269)*np.cos(20.7307*t) + (-0.0058)*np.sin(20.7307*t))*np.exp(-0.1286*20.9039*t) + (0.0273)*np.cos(omega*t - (2.9723))
+    testing = True
 # Function definitions
 
 def cent_dif(y, n):
@@ -83,13 +109,13 @@ def error_check(y, y_s):
     print("Peak error = ", round(peak_error*100, 3), "%, rebound error = ", round(rebound_error*100, 3), "%\n", sep='')
     return valid
 
-# Position array definitions
+# Position array definitions, previous position approximation
 
 t = np.append(t, -h)
 
 y = np.zeros(n_tot+1)
 y[0] = y_0
-y[-1] = y_0 - (v_0 - h*((force(0) - c*v_0 - k*y_0)/m))*h
+y[-1] = (y_0 - (v_0 - h*((force(0) - c*v_0 - k*y_0)/m))*h)
 
 # Main loop
 
@@ -105,7 +131,7 @@ while (n < n_tot):
 
 # Plot output
 
-if mode != 'userDef':
+if mode != ('userDef'):
     plt.plot(t[:-1], y_s, color='darkmagenta')
 
 plt.scatter(t[:-1], y[:-1], s=1, color='violet', marker='o')
@@ -115,10 +141,11 @@ plt.show()
 
 y = y[:-1]
 
-error_check(y, y_s)
-
 # Time step checking
-omega_n = np.sqrt(k/m)
-print("Time step = ", round(h,6), ", natural frequency = ", round(omega_n,3), sep='')
-print("Time step ", round((h/omega_n)*100,3), "% of natural frequency", sep='')
+if testing:
+    error_check(y, y_s)
+    omega_n = np.sqrt(k/m)
+    print("m c k =", m, c, k)
+    print("Number of points = ", n_tot,", Time step = ", round(h,6), ", natural frequency = ", round(omega_n,3), sep='')
+    print("Time step ", round((h/omega_n)*100,3), "% of natural frequency", sep='')
     
