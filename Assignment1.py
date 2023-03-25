@@ -1,22 +1,23 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.integrate import solve_ivp
 
 # Start time & end time
 
-n_tot = 2000
+n_tot = 70
 start_time = 0
 end_time = 2.5
 
 h = (end_time - start_time)/n_tot
 t = np.linspace(start_time, end_time, n_tot)
-
+t_s = np.linspace(start_time, end_time, round((end_time - start_time)/0.01))
 # Function definitions
 
 def cent_dif(y, n):
     y[n+1] = (((m/(h*h))*(2*y[n] - y[n-1])) + ((c/(2*h))*y[n-1]) + (-k*y[n]) + force(n))/((m/(h*h)) + (c/(2*h)))
     return y
 
-def anal_soln(m, c, k, m0, e, omega, v0, y0, t):
+def anal_soln(m, c, k, m0, e, omega, v0, y0, t_s):
     
     # System variables
     
@@ -36,15 +37,19 @@ def anal_soln(m, c, k, m0, e, omega, v0, y0, t):
     
     # Forced response
     
-    y_c = X_mag*np.cos(omega*t - psi)
+    y_c = X_mag*np.cos(omega*t_s - psi)
     
     # More variables woop
     
     A_3 = -X_mag*np.cos(-psi)
     A_4 = (omega*X_mag*np.sin(-psi) + zeta*omega_n*A_3)/omega_d
-    y_p = (A_3*np.cos(omega_d*t) + A_4*np.sin(omega_d*t))*np.exp(-zeta*omega_n*t);
+    y_p = (A_3*np.cos(omega_d*t_s) + A_4*np.sin(omega_d*t_s))*np.exp(-zeta*omega_n*t_s);
     
     r = omega/omega_n
+    
+    y_p, y_c = 0, 0
+    
+    y_p = np.cos(np.sqrt(5)*t_s) + (2/np.sqrt(5))*np.sin(np.sqrt(5)*t_s)
     
     return (y_p + y_c), r
 
@@ -69,15 +74,16 @@ def error_check(y, y_s):
 
 # Function definitions
 
-testing = False
-set_by_r = True
+testing = True
+set_by_r = False
 numerical_estimate = True
 auto_time_step = False
+runge_kutta = False
 
-[m, c, k] = [54, 320, 26000]
-[m_0, e, omega] = [5.5, 0.225, 400*np.pi/30]
+[m, c, k] = [50, 0, 250]
+[m_0, e, omega] = [0, 0, 0*np.pi/30]
 
-[y_0, v_0] = [0, 0]
+[y_0, v_0] = [1, 2]
 
 m = m + m_0
 
@@ -86,8 +92,18 @@ omega = r*np.sqrt(k/m) if set_by_r else omega
     
 def force(n):
     return m_0*e*(omega**2)*np.cos(omega*(n*h))
+
+# Analytical solns
     
-y_s, r = anal_soln(m=m, k=k, c=c, m0=m_0, e=e, omega=omega, v0=v_0, y0=y_0, t=t)
+y_s, r = anal_soln(m=m, k=k, c=c, m0=m_0, e=e, omega=omega, v0=v_0, y0=y_0, t_s=t_s)
+
+if (runge_kutta):
+    def ODE_func(t,y):
+        x = y[0]
+        v = y[1]
+        return (v, (m_0*e*(omega**2)*np.cos(omega*(t)))/m - c*v/m - k*x/m)
+    
+    y_rk = solve_ivp(fun=ODE_func, t_span=[t_s[0], t_s[-1]], y0=[y_0,v_0], t_eval = t_s)
 
 # Position array definitions, previous position approximation
 
@@ -95,26 +111,36 @@ t = np.append(t, -h)
 
 y = np.zeros(n_tot+1)
 y[0] = y_0
-y[-1] = (y_0 - (v_0 - (h**2/2)*((force(0) - c*v_0 - k*y_0)/m)))
+
+y[-1] = y_0 - v_0*h - (h**2/(2*m))*(force(0) - c*v_0 - k*y_0)
+#y[-1] = y[0] - v_0*h - 0.5*h*h*(c*v_0 + k*y[0] - force(0))/m
+
 
 # Main loop
 
 n = 0
 
 while (n < n_tot):
-    y = cent_dif(y, n)    
+    y = cent_dif(y, n)   
     n += 1 
 
 # Plot output
 fig, ax = plt.subplots(dpi=300)
-plt.plot(t[:-1], y_s*1000, color='dodgerblue', label="Analytical solution")
+plt.plot(t_s, y_s, color='dodgerblue', label="Analytical solution")
+
 if numerical_estimate:
-    plt.scatter(t[:-1], y[:-1]*1000, s=1, color='darkred', marker='o', label="Numerical approximation")
-plt.title("Washing machine displacement, omega = "+ str(round(omega,2)) +" rad/s, r = " + str(round(r, 3)))
+    plt.scatter(t[:-1], y[:-1], s=1, color='red', marker='o', label="Numerical approximation")
+    
+if runge_kutta:
+    plt.scatter(y_rk.t, y_rk.y[0], s=1, color="green", marker='o', label="Runge-Kutta approximation")
+    
+    
+#plt.title("Displacement, omega = "+ str(round(omega,2)) +" rad/s, r = " + str(round(r, 3)))
+plt.title("Displacement over time, n = " + str(n_tot))
 plt.legend(loc="upper right")
 ax.margins(y=0.3)
 plt.xlabel("Time (s)")
-plt.ylabel("Displacement (mm)")
+plt.ylabel("Displacement (m)")
 plt.show()
 
 # Error checking
